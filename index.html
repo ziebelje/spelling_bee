@@ -1,1 +1,1448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Spelling Bee Practice</title>
+    <style>
+:root {
+  --bg-blue: #1155cc;
+  --bg-yellow: #c28f00;
+  --bg-green: #178a3e;
+  --bg-red: #b52828;
+  --surface: rgba(255, 255, 255, 0.12);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.82);
+}
 
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  color: var(--text);
+  background: var(--bg-blue);
+}
+
+body[data-state="spelling"] {
+  background: var(--bg-yellow);
+}
+
+body[data-state="result"][data-result="correct"] {
+  background: var(--bg-green);
+}
+
+body[data-state="result"][data-result="wrong"] {
+  background: var(--bg-red);
+}
+
+.start-screen,
+.practice-screen {
+  min-height: 100dvh;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+}
+
+.start-screen {
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.start-screen h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.controls {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.field {
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.85rem;
+}
+
+.field select,
+.field input {
+  width: 100%;
+  min-height: 2.2rem;
+  border: 0;
+  border-radius: 0.6rem;
+}
+
+.field.toggle {
+  align-content: end;
+}
+
+.controls,
+.start-btn {
+  border-radius: 0.8rem;
+  background: var(--surface);
+  backdrop-filter: blur(2px);
+  padding: 0.85rem;
+}
+
+.definition {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 1.15rem;
+}
+
+.definition-source {
+  margin-left: 0.35rem;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.live-letters {
+  margin: 0;
+  min-height: 3rem;
+  font-size: clamp(2.2rem, 9vw, 6rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.live-letters .result-main,
+.live-letters .result-sub {
+  display: block;
+}
+
+.live-letters .result-sub {
+  margin-top: 0.35rem;
+  font-size: 0.48em;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 500;
+}
+
+.practice-screen {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+}
+
+.session-stats {
+  margin: 0;
+  justify-self: start;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.start-btn {
+  border: 0;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.word-stats-panel {
+  border-radius: 0.8rem;
+  background: var(--surface);
+  backdrop-filter: blur(2px);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.word-stats-table-wrap {
+  max-height: 44vh;
+  overflow: auto;
+}
+
+.word-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.word-stats-table th,
+.word-stats-table td {
+  text-align: left;
+  padding: 0.4rem 0.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.word-stats-table th {
+  position: sticky;
+  top: 0;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 768px) {
+  .practice-screen {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+}
+    </style>
+  </head>
+  <body data-state="idle" data-result="none" data-view="start">
+    <main id="startScreen" class="start-screen" role="application" aria-label="Spelling Bee Setup">
+      <h1>Spelling Bee</h1>
+      <div class="controls">
+        <label class="field">
+          <span>Mode</span>
+          <select id="modeSelect">
+            <option value="random">Random</option>
+            <option value="struggle">Struggle</option>
+          </select>
+        </label>
+        <label class="field toggle">
+          <span>Live letters</span>
+          <input id="liveLettersToggle" type="checkbox" checked />
+        </label>
+      </div>
+      <button id="wordStatsBtn" class="start-btn" type="button">Word Stats</button>
+      <section id="wordStatsPanel" class="word-stats-panel" hidden>
+        <label class="field">
+          <span>Sort by</span>
+          <select id="wordStatsSort">
+            <option value="grade">Grade level</option>
+            <option value="last3">Last 3 %</option>
+            <option value="allTime">All time %</option>
+          </select>
+        </label>
+        <div class="word-stats-table-wrap">
+          <table class="word-stats-table" aria-label="Word performance table">
+            <thead>
+              <tr>
+                <th>Word</th>
+                <th>Grade</th>
+                <th>All time %</th>
+                <th>Last 3 %</th>
+              </tr>
+            </thead>
+            <tbody id="wordStatsBody"></tbody>
+          </table>
+        </div>
+      </section>
+      <button id="startBtn" class="start-btn" type="button">Start</button>
+    </main>
+
+    <main id="practiceScreen" class="practice-screen" role="application" aria-label="Spelling Bee Practice" hidden>
+      <p id="definition" class="definition" aria-live="polite"></p>
+      <p id="liveLetters" class="live-letters" aria-live="polite"></p>
+      <p id="sessionStats" class="session-stats"></p>
+    </main>
+
+    <script>
+(function attachWordBank() {
+  const WORD_BANK = [
+    // Grade 4
+    { word: "hesitate", grade: 4, seedDefinition: "To pause before saying or doing something." },
+    { word: "fragments", grade: 4, seedDefinition: "Small broken pieces or incomplete parts." },
+    { word: "ration", grade: 4, seedDefinition: "A fixed amount of food or supplies." },
+    { word: "frustration", grade: 4, seedDefinition: "The feeling of being upset by difficulty." },
+    { word: "aroma", grade: 4, seedDefinition: "A pleasant smell, often from food." },
+    { word: "perfume", grade: 4, seedDefinition: "A fragrant liquid worn for scent." },
+    { word: "discoveries", grade: 4, seedDefinition: "Things found for the first time." },
+    { word: "prognosis", grade: 4, seedDefinition: "A prediction about how something will turn out, especially illness." },
+    { word: "gallop", grade: 4, seedDefinition: "A horse's fast running gait." },
+    { word: "fluently", grade: 4, seedDefinition: "In a smooth and easy way when speaking or reading." },
+    { word: "sardines", grade: 4, seedDefinition: "Small oily fish often packed in cans." },
+    { word: "rickety", grade: 4, seedDefinition: "Shaky, weak, and likely to fall apart." },
+    { word: "porridge", grade: 4, seedDefinition: "A hot cereal made by boiling grains." },
+    { word: "beige", grade: 4, seedDefinition: "A light brown or sandy color." },
+    { word: "gaunt", grade: 4, seedDefinition: "Very thin or bony in appearance." },
+    { word: "nautical", grade: 4, seedDefinition: "Related to ships, sailors, or the sea." },
+    { word: "foreign", grade: 4, seedDefinition: "From another country or language." },
+    { word: "scorcher", grade: 4, seedDefinition: "A very hot day." },
+    { word: "deflated", grade: 4, seedDefinition: "Let air out; or became discouraged." },
+    { word: "cosmetics", grade: 4, seedDefinition: "Products used to care for appearance, like makeup." },
+    { word: "unruly", grade: 4, seedDefinition: "Hard to control; wild or disorderly." },
+    { word: "moustache", grade: 4, seedDefinition: "Hair grown on the upper lip." },
+    { word: "sinister", grade: 4, seedDefinition: "Giving a feeling that something bad may happen." },
+    { word: "lurches", grade: 4, seedDefinition: "Moves suddenly and unevenly." },
+    { word: "Buffalo", grade: 4, seedDefinition: "A large animal; also a city name." },
+    { word: "fabulous", grade: 4, seedDefinition: "Extremely good; wonderful." },
+    { word: "mysterious", grade: 4, seedDefinition: "Difficult to explain or understand." },
+    { word: "anguish", grade: 4, seedDefinition: "Great mental or physical pain." },
+    { word: "lilt", grade: 4, seedDefinition: "A cheerful, rhythmic rise and fall in sound." },
+    { word: "democracy", grade: 4, seedDefinition: "A system of government by the people." },
+    { word: "ancestral", grade: 4, seedDefinition: "Related to family ancestors." },
+    { word: "enormous", grade: 4, seedDefinition: "Very large in size." },
+    { word: "dubious", grade: 4, seedDefinition: "Doubtful or not to be trusted." },
+    { word: "scavenger", grade: 4, seedDefinition: "An animal or person that searches for usable leftovers." },
+    { word: "unleash", grade: 4, seedDefinition: "To release or let loose." },
+    { word: "crawdad", grade: 4, seedDefinition: "A small freshwater crustacean, like a tiny lobster." },
+    { word: "mascot", grade: 4, seedDefinition: "A symbol or character representing a group." },
+    { word: "artifacts", grade: 4, seedDefinition: "Objects made by humans in the past." },
+    { word: "tuxedo", grade: 4, seedDefinition: "A formal black suit for special events." },
+    { word: "language", grade: 4, seedDefinition: "A system of spoken or written communication." },
+    { word: "sequins", grade: 4, seedDefinition: "Small shiny discs sewn onto clothing." },
+    { word: "lanky", grade: 4, seedDefinition: "Tall and thin in a slightly awkward way." },
+    { word: "brandished", grade: 4, seedDefinition: "Waved something, usually a weapon, in a threatening way." },
+    { word: "conical", grade: 4, seedDefinition: "Shaped like a cone." },
+    { word: "pediatric", grade: 4, seedDefinition: "Related to medical care for children." },
+    { word: "rummage", grade: 4, seedDefinition: "To search through things in a messy way." },
+    { word: "grimace", grade: 4, seedDefinition: "A facial expression showing pain or disgust." },
+    { word: "geranium", grade: 4, seedDefinition: "A common flowering garden plant." },
+    { word: "ebony", grade: 4, seedDefinition: "Very dark black wood or color." },
+    { word: "paltry", grade: 4, seedDefinition: "Very small or unimportant in amount." },
+
+    // Grade 5
+    { word: "verdict", grade: 5, seedDefinition: "A decision made after judging evidence." },
+    { word: "imitation", grade: 5, seedDefinition: "A copy of something." },
+    { word: "preamble", grade: 5, seedDefinition: "An introductory statement before the main part." },
+    { word: "commotion", grade: 5, seedDefinition: "Noisy confusion and movement." },
+    { word: "steeple", grade: 5, seedDefinition: "A tall pointed tower on a church or building." },
+    { word: "suspicious", grade: 5, seedDefinition: "Causing doubt or mistrust." },
+    { word: "fugitive", grade: 5, seedDefinition: "A person running from the law." },
+    { word: "nomad", grade: 5, seedDefinition: "A person with no fixed home who moves place to place." },
+    { word: "Berlin", grade: 5, seedDefinition: "Capital city of Germany." },
+    { word: "bracken", grade: 5, seedDefinition: "A type of large fern." },
+    { word: "rakish", grade: 5, seedDefinition: "Stylish in a bold or slightly unconventional way." },
+    { word: "gusto", grade: 5, seedDefinition: "Great enjoyment and energy." },
+    { word: "jeered", grade: 5, seedDefinition: "Mocked by shouting rude comments." },
+    { word: "galore", grade: 5, seedDefinition: "In abundance; plenty of." },
+    { word: "eccentric", grade: 5, seedDefinition: "Unusual or odd in behavior." },
+    { word: "hippies", grade: 5, seedDefinition: "Members of a youth movement known for peace and counterculture ideals." },
+    { word: "Pistachio", grade: 5, seedDefinition: "A green edible nut." },
+    { word: "garbled", grade: 5, seedDefinition: "Confused or distorted so it is hard to understand." },
+    { word: "miniature", grade: 5, seedDefinition: "Very small in size." },
+    { word: "plausible", grade: 5, seedDefinition: "Seeming reasonable or likely." },
+    { word: "oblivion", grade: 5, seedDefinition: "A state of being forgotten or unaware." },
+    { word: "spectators", grade: 5, seedDefinition: "People watching an event." },
+    { word: "parchment", grade: 5, seedDefinition: "A writing material made from animal skin." },
+    { word: "heron", grade: 5, seedDefinition: "A long-legged bird that often lives near water." },
+    { word: "billowed", grade: 5, seedDefinition: "Swelled outward like a wave or sail." },
+    { word: "lunacy", grade: 5, seedDefinition: "Extreme foolishness." },
+    { word: "noggin", grade: 5, seedDefinition: "Informal word for head." },
+    { word: "hypnosis", grade: 5, seedDefinition: "A trance-like state of focused attention." },
+    { word: "toiletries", grade: 5, seedDefinition: "Personal care items such as soap and toothpaste." },
+    { word: "winsome", grade: 5, seedDefinition: "Charming in an innocent way." },
+    { word: "emporium", grade: 5, seedDefinition: "A large store with many kinds of goods." },
+    { word: "savant", grade: 5, seedDefinition: "A person with deep knowledge in a particular subject." },
+    { word: "samosas", grade: 5, seedDefinition: "Fried pastries filled with spiced ingredients." },
+    { word: "mosque", grade: 5, seedDefinition: "A Muslim place of worship." },
+    { word: "encourages", grade: 5, seedDefinition: "Gives support, confidence, or hope." },
+    { word: "receptionist", grade: 5, seedDefinition: "A person who greets visitors and handles front desk tasks." },
+    { word: "reprimanding", grade: 5, seedDefinition: "Scolding or expressing formal disapproval." },
+    { word: "immigrants", grade: 5, seedDefinition: "People who move to live in a new country." },
+    { word: "lanyards", grade: 5, seedDefinition: "Straps worn around the neck to hold badges or keys." },
+    { word: "ramshackle", grade: 5, seedDefinition: "In poor condition and likely to collapse." },
+    { word: "dissolving", grade: 5, seedDefinition: "Mixing into a liquid until no solid remains." },
+    { word: "skewer", grade: 5, seedDefinition: "A long pin used to hold food pieces together." },
+    { word: "conjure", grade: 5, seedDefinition: "To call up as if by magic; to bring to mind." },
+    { word: "neon", grade: 5, seedDefinition: "A bright glowing gas used in signs." },
+    { word: "rotunda", grade: 5, seedDefinition: "A round building or round room." },
+    { word: "gleaned", grade: 5, seedDefinition: "Gathered little by little; learned gradually." },
+    { word: "prattling", grade: 5, seedDefinition: "Talking at length in a childish or trivial way." },
+    { word: "atrium", grade: 5, seedDefinition: "An open central area inside a building." },
+    { word: "almanac", grade: 5, seedDefinition: "A yearly publication with useful facts and dates." },
+    { word: "campaign", grade: 5, seedDefinition: "An organized effort to reach a goal." },
+
+    // Grade 6
+    { word: "zombielike", grade: 6, seedDefinition: "Moving or acting as if without awareness." },
+    { word: "convulsively", grade: 6, seedDefinition: "In a way marked by sudden violent movement." },
+    { word: "graffitist", grade: 6, seedDefinition: "A person who makes graffiti art." },
+    { word: "cavorting", grade: 6, seedDefinition: "Jumping or dancing around playfully." },
+    { word: "battlements", grade: 6, seedDefinition: "Defensive walls at the top of a castle." },
+    { word: "khaki", grade: 6, seedDefinition: "A dull yellow-brown color; also fabric in that color." },
+    { word: "Yiddish", grade: 6, seedDefinition: "A language historically spoken by Ashkenazi Jews." },
+    { word: "equestrian", grade: 6, seedDefinition: "Related to horseback riding." },
+    { word: "manticores", grade: 6, seedDefinition: "Mythical creatures with lion-like bodies and human-like features." },
+    { word: "guttural", grade: 6, seedDefinition: "Produced in the throat; harsh sounding." },
+    { word: "sans serif", grade: 6, seedDefinition: "A typeface without small projecting strokes." },
+    { word: "Frankenstein", grade: 6, seedDefinition: "Name from a famous novel; often used for a frightening creation." },
+    { word: "vidimus", grade: 6, seedDefinition: "A certified copy of a document." },
+    { word: "archipelago", grade: 6, seedDefinition: "A group of islands." },
+    { word: "pinioning", grade: 6, seedDefinition: "Restraining tightly or binding a wing/arm." },
+    { word: "galleon", grade: 6, seedDefinition: "A large sailing ship used in past centuries." },
+    { word: "wainscoting", grade: 6, seedDefinition: "Decorative wooden paneling on interior walls." },
+    { word: "warlock", grade: 6, seedDefinition: "A man believed to practice magic." },
+    { word: "dimensional", grade: 6, seedDefinition: "Related to measurable size or extent." },
+    { word: "Everest", grade: 6, seedDefinition: "The highest mountain above sea level." },
+    { word: "marauder", grade: 6, seedDefinition: "A raider who roams in search of loot." },
+    { word: "deferential", grade: 6, seedDefinition: "Showing respectful submission to someone." },
+    { word: "opalescent", grade: 6, seedDefinition: "Showing milky, shifting rainbow-like colors." },
+    { word: "talcum", grade: 6, seedDefinition: "A fine powder made from talc mineral." },
+    { word: "plaited", grade: 6, seedDefinition: "Braided into interwoven strands." },
+    { word: "prestigious", grade: 6, seedDefinition: "Highly respected and admired." },
+    { word: "lo mein", grade: 6, seedDefinition: "A Chinese noodle dish." },
+    { word: "psyche", grade: 6, seedDefinition: "A person's mind or inner self." },
+    { word: "schema", grade: 6, seedDefinition: "An organized plan or framework." },
+    { word: "delphine", grade: 6, seedDefinition: "A female given name; also related to dolphin-like." },
+    { word: "serape", grade: 6, seedDefinition: "A colorful blanket-like shawl worn in Latin America." },
+    { word: "chignon", grade: 6, seedDefinition: "A knot or roll of hair at the back of the head." },
+    { word: "magnanimous", grade: 6, seedDefinition: "Generous and forgiving, especially toward a rival." },
+    { word: "Nehru", grade: 6, seedDefinition: "Surname of notable Indian political leaders." },
+    { word: "colossus", grade: 6, seedDefinition: "A person or thing of enormous size or importance." },
+    { word: "garishly", grade: 6, seedDefinition: "In an excessively bright or showy way." },
+    { word: "dexterity", grade: 6, seedDefinition: "Skill and ease in using the hands." },
+    { word: "conscience", grade: 6, seedDefinition: "Inner sense of right and wrong." },
+    { word: "albatross", grade: 6, seedDefinition: "A large ocean bird; figuratively, a burdensome thing." },
+    { word: "asphalt", grade: 6, seedDefinition: "A dark paving material used for roads." },
+    { word: "tranquilizer", grade: 6, seedDefinition: "A medicine that calms or sedates." },
+    { word: "monsieur", grade: 6, seedDefinition: "French title equivalent to Mister." },
+    { word: "fraidycat", grade: 6, seedDefinition: "An easily frightened person." },
+    { word: "courier", grade: 6, seedDefinition: "A person or company that delivers messages or packages." },
+    { word: "stucco", grade: 6, seedDefinition: "A hard plaster used for coating walls." },
+    { word: "et cetera", grade: 6, seedDefinition: "And other similar things." },
+    { word: "slough", grade: 6, seedDefinition: "To shed or cast off; also a swamp in some dialects." },
+    { word: "puissance", grade: 6, seedDefinition: "Power or strength." },
+    { word: "pheromone", grade: 6, seedDefinition: "A chemical signal released by an animal affecting others of its species." },
+    { word: "chartreuse", grade: 6, seedDefinition: "A yellow-green color." }
+  ];
+
+  window.SPELLING_BEE_WORDS = WORD_BANK;
+})();
+    </script>
+    <script>
+(function spellingBeeApp() {
+  const words = Array.isArray(window.SPELLING_BEE_WORDS) ? window.SPELLING_BEE_WORDS : [];
+  if (!words.length) {
+    return;
+  }
+
+  const STORAGE_KEYS = {
+    stats: "spellingBeeStatsV1",
+    settings: "spellingBeeSettingsV1",
+    definitions: "spellingBeeDefinitionsV1",
+    definitionMeta: "spellingBeeDefinitionMetaV1"
+  };
+
+  const ui = {
+    body: document.body,
+    startScreen: document.getElementById("startScreen"),
+    practiceScreen: document.getElementById("practiceScreen"),
+    startBtn: document.getElementById("startBtn"),
+    wordStatsBtn: document.getElementById("wordStatsBtn"),
+    wordStatsPanel: document.getElementById("wordStatsPanel"),
+    wordStatsSort: document.getElementById("wordStatsSort"),
+    wordStatsBody: document.getElementById("wordStatsBody"),
+    definition: document.getElementById("definition"),
+    liveLetters: document.getElementById("liveLetters"),
+    sessionStats: document.getElementById("sessionStats"),
+    modeSelect: document.getElementById("modeSelect"),
+    liveLettersToggle: document.getElementById("liveLettersToggle")
+  };
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SPELLING_IDLE_SUBMIT_MS = 4000;
+
+  const state = {
+    timeline: [],
+    cursor: -1,
+    settings: loadJson(STORAGE_KEYS.settings, { mode: "random", showLiveLetters: true }),
+    stats: loadJson(STORAGE_KEYS.stats, {}),
+    definitions: loadJson(STORAGE_KEYS.definitions, {}),
+    definitionMeta: loadJson(STORAGE_KEYS.definitionMeta, {}),
+    session: { right: 0, wrong: 0 },
+    recognition: null,
+    isListening: false,
+    transcript: "",
+    lockedLetters: "",
+    pendingEvaluation: false,
+    autoNextTimer: null,
+    spellingIdleTimer: null,
+    finalTranscript: "",
+    interimTranscript: "",
+    speechVoice: null,
+    speechVoicesReady: false,
+    micPermissionGranted: false,
+    promptToken: 0,
+    appStarted: false,
+    wordStatsSortKey: "grade",
+    randomBag: [],
+    activePronunciationAudio: null
+  };
+
+  const LETTER_TOKEN_MAP = {
+    a: "a", ay: "a", hey: "a",
+    b: "b", bee: "b", be: "b",
+    c: "c", see: "c", sea: "c",
+    d: "d", dee: "d",
+    e: "e",
+    f: "f", ef: "f",
+    g: "g", gee: "g", ji: "g",
+    h: "h", aitch: "h", haitch: "h",
+    i: "i", eye: "i",
+    j: "j", jay: "j",
+    k: "k", kay: "k",
+    l: "l", el: "l",
+    m: "m", em: "m",
+    n: "n", en: "n",
+    o: "o", oh: "o",
+    p: "p", pee: "p",
+    q: "q", cue: "q", queue: "q",
+    r: "r", ar: "r",
+    s: "s", ess: "s",
+    t: "t", tee: "t", tea: "t",
+    u: "u", you: "u",
+    v: "v", vee: "v",
+    w: "w", doubleyou: "w", "double-u": "w",
+    x: "x", ex: "x",
+    y: "y", why: "y",
+    z: "z", zee: "z", zed: "z",
+    space: " "
+  };
+
+  init();
+
+  function init() {
+    ui.modeSelect.value = state.settings.mode;
+    ui.liveLettersToggle.checked = !!state.settings.showLiveLetters;
+    setupSpeechSynthesis();
+    bindEvents();
+    setupRecognition();
+    renderStartScreen();
+  }
+
+  function bindEvents() {
+    const unlockSpeech = () => {
+      if (!window.speechSynthesis) return;
+      try {
+        window.speechSynthesis.resume();
+      } catch (error) {
+        // No-op: speech synth may not be available yet.
+      }
+    };
+
+    ui.modeSelect.addEventListener("change", () => {
+      state.settings.mode = ui.modeSelect.value === "struggle" ? "struggle" : "random";
+      saveJson(STORAGE_KEYS.settings, state.settings);
+      setMessage("Mode updated.");
+    });
+
+    ui.liveLettersToggle.addEventListener("change", () => {
+      state.settings.showLiveLetters = ui.liveLettersToggle.checked;
+      saveJson(STORAGE_KEYS.settings, state.settings);
+      render();
+    });
+
+    ui.startBtn.addEventListener("click", () => {
+      startSession();
+    });
+    ui.startBtn.addEventListener("pointerdown", unlockSpeech, { passive: true });
+    ui.wordStatsBtn.addEventListener("click", () => {
+      toggleWordStatsPanel();
+    });
+    ui.wordStatsSort.addEventListener("change", () => {
+      const key = ui.wordStatsSort.value;
+      state.wordStatsSortKey = key === "allTime" || key === "last3" ? key : "grade";
+      renderWordStatsTable();
+    });
+
+    window.addEventListener("pointerup", handleScreenTap, { passive: true });
+  }
+
+  function startSession() {
+    if (state.appStarted) return;
+    state.appStarted = true;
+    state.randomBag = buildRandomBag();
+    ui.body.dataset.view = "practice";
+    ui.startScreen.hidden = true;
+    ui.practiceScreen.hidden = false;
+    pushNewWordEntry();
+    render();
+  }
+
+  function renderStartScreen() {
+    ui.body.dataset.view = "start";
+    ui.startScreen.hidden = false;
+    ui.practiceScreen.hidden = true;
+    ui.wordStatsSort.value = state.wordStatsSortKey;
+    renderWordStatsTable();
+  }
+
+  function toggleWordStatsPanel() {
+    const show = ui.wordStatsPanel.hidden;
+    ui.wordStatsPanel.hidden = !show;
+    if (show) {
+      renderWordStatsTable();
+    }
+  }
+
+  function renderWordStatsTable() {
+    if (!ui.wordStatsBody) return;
+    const rows = words.map((entry) => {
+      const key = normalizeWord(entry.word);
+      const bucket = state.stats[key] || { right: 0, wrong: 0, last3: [] };
+      const totalAttempts = (bucket.right || 0) + (bucket.wrong || 0);
+      const last3 = Array.isArray(bucket.last3) ? bucket.last3 : [];
+      const last3Count = last3.length;
+      const last3Correct = last3.filter(Boolean).length;
+      const allPct = totalAttempts ? (bucket.right / totalAttempts) * 100 : 0;
+      const last3Pct = last3Count ? (last3Correct / last3Count) * 100 : 0;
+      return {
+        word: entry.word,
+        wordSort: String(entry.word || "").toLowerCase(),
+        grade: Number(entry.grade) || 0,
+        allPct,
+        last3Pct
+      };
+    });
+
+    const key = state.wordStatsSortKey;
+    rows.sort((a, b) => {
+      if (key === "last3") {
+        const primary = b.last3Pct - a.last3Pct;
+        if (primary !== 0) return primary;
+      } else if (key === "allTime") {
+        const primary = b.allPct - a.allPct;
+        if (primary !== 0) return primary;
+      } else {
+        const primary = a.grade - b.grade;
+        if (primary !== 0) return primary;
+      }
+      return a.wordSort.localeCompare(b.wordSort);
+    });
+
+    ui.wordStatsBody.innerHTML = rows
+      .map((row) => {
+        return `<tr><td>${escapeHtml(row.word)}</td><td>${row.grade}</td><td>${formatPct(row.allPct)}</td><td>${formatPct(row.last3Pct)}</td></tr>`;
+      })
+      .join("");
+  }
+
+  function formatPct(value) {
+    return `${Math.round(value)}%`;
+  }
+
+  function handleScreenTap(event) {
+    if (!state.appStarted) return;
+    if (!ui.practiceScreen.contains(event.target)) return;
+    const interactive = event.target.closest("select, input, label, option");
+    if (interactive) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    handleForwardTap();
+  }
+
+  function setupSpeechSynthesis() {
+    if (!window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+
+    const updateVoice = () => {
+      const voices = synth.getVoices();
+      if (!voices.length) return;
+      state.speechVoice =
+        voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) ||
+        voices[0] ||
+        null;
+      state.speechVoicesReady = true;
+    };
+
+    updateVoice();
+    synth.addEventListener("voiceschanged", updateVoice);
+  }
+
+  function setupRecognition() {
+    if (!SpeechRecognition) {
+      setMessage("Speech recognition is unavailable in this browser.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = onRecognitionResult;
+    recognition.onerror = (event) => {
+      const code = event && event.error ? event.error : "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setMessage("Microphone blocked. Allow microphone in Chrome site settings, then retry.");
+      } else if (code === "audio-capture") {
+        setMessage("No usable microphone detected. Check your device input.");
+      } else {
+        setMessage("Speech recognition issue. Check microphone permissions and retry.");
+      }
+    };
+    recognition.onend = () => {
+      state.isListening = false;
+      if (state.pendingEvaluation) {
+        state.pendingEvaluation = false;
+        evaluateCurrentAttempt();
+      }
+      render();
+    };
+    state.recognition = recognition;
+  }
+
+  function onRecognitionResult(event) {
+    let finalText = "";
+    let interimText = "";
+    for (let i = 0; i < event.results.length; i += 1) {
+      const chunk = `${event.results[i][0].transcript} `;
+      if (event.results[i].isFinal) {
+        finalText += chunk;
+      } else {
+        interimText += chunk;
+      }
+    }
+    state.finalTranscript = finalText.trim();
+    state.interimTranscript = interimText.trim();
+    state.transcript = `${state.finalTranscript} ${state.interimTranscript}`.trim();
+
+    const entry = currentEntry();
+    if (!entry) return;
+    if (entry.state !== "spelling") return;
+
+    const parsed = parseTranscript(state.finalTranscript, entry.word.word);
+    if (parsed.hasWord && parsed.letters) {
+      if (!state.lockedLetters || parsed.letters.startsWith(state.lockedLetters)) {
+        state.lockedLetters = parsed.letters;
+      }
+    }
+    scheduleSpellingIdleAutoSubmit();
+
+    const liveParsed = parseTranscript(state.transcript, entry.word.word);
+    if (liveParsed.hasWord && liveParsed.letters && liveParsed.letters === entry.word.word) {
+      submitSpelling();
+      return;
+    }
+    render();
+  }
+
+  function handleForwardTap() {
+    clearAutoNext();
+    const entry = currentEntry();
+    if (!entry) return;
+
+    if (entry.state === "idle") {
+      startPromptCycle(entry);
+      return;
+    }
+
+    if (entry.state === "spelling") {
+      submitSpelling();
+      return;
+    }
+
+    if (entry.state === "result") {
+      moveToNextEntry();
+    }
+  }
+
+  async function startSpelling(skipPrompt) {
+    const entry = currentEntry();
+    if (!entry) return;
+    entry.state = "spelling";
+    entry.result = null;
+    resetSpellingCapture();
+    clearSpellingIdleAutoSubmit();
+    if (!skipPrompt) {
+      await speakWordPrompt(entry.word.word);
+      const live = currentEntry();
+      if (!live || live.id !== entry.id) return;
+    }
+    render();
+    if (state.recognition) {
+      const micReady = await ensureMicrophoneAccess();
+      if (!micReady) {
+        state.isListening = false;
+        render();
+        return;
+      }
+      try {
+        state.recognition.start();
+        state.isListening = true;
+        scheduleSpellingIdleAutoSubmit();
+      } catch (error) {
+        state.isListening = false;
+      }
+    }
+    render();
+  }
+
+  async function startPromptCycle(entry) {
+    if (!entry) return;
+    const token = ++state.promptToken;
+    clearSpellingIdleAutoSubmit();
+    stopPronunciationAudio();
+    entry.state = "idle";
+    entry.result = null;
+    resetSpellingCapture();
+    render();
+    const spoke = await speakWordPrompt(entry.word.word);
+    const live = currentEntry();
+    if (!live || live.id !== entry.id || token !== state.promptToken) {
+      return;
+    }
+    if (!spoke) {
+      setMessage("Tap to play the prompt and begin spelling.");
+      render();
+      return;
+    }
+    startSpelling(true);
+  }
+
+  async function ensureMicrophoneAccess() {
+    if (state.micPermissionGranted) return true;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMessage("Microphone API unavailable. Open on https:// or http://localhost in Chrome.");
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      state.micPermissionGranted = true;
+      return true;
+    } catch (error) {
+      const name = error && error.name ? error.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setMessage("Microphone permission denied. In Chrome site settings, allow Microphone. If using file://, run from localhost.");
+      } else if (name === "NotFoundError") {
+        setMessage("No microphone found on this device.");
+      } else {
+        setMessage("Could not access microphone. Check Chrome permissions and retry.");
+      }
+      return false;
+    }
+  }
+
+  function submitSpelling() {
+    if (!state.recognition) {
+      evaluateCurrentAttempt();
+      return;
+    }
+    if (!state.isListening) {
+      evaluateCurrentAttempt();
+      return;
+    }
+    stopListening(true);
+  }
+
+  function stopListening(andEvaluate) {
+    clearSpellingIdleAutoSubmit();
+    state.pendingEvaluation = !!andEvaluate;
+    if (state.recognition && state.isListening) {
+      try {
+        state.recognition.stop();
+      } catch (error) {
+        state.pendingEvaluation = false;
+      }
+    } else if (andEvaluate) {
+      evaluateCurrentAttempt();
+    }
+  }
+
+  function evaluateCurrentAttempt() {
+    clearSpellingIdleAutoSubmit();
+    const entry = currentEntry();
+    if (!entry) return;
+
+    const parsed = parseTranscript(state.transcript, entry.word.word);
+    const expectedWord = String(entry.word.word || "");
+    const letters = parsed.letters || "";
+    let validFormat = parsed.hasWord && letters.length > 0;
+
+    if (state.lockedLetters && letters && !letters.startsWith(state.lockedLetters)) {
+      validFormat = false;
+      setMessage("You restarted with different letters. Keep your earlier letters the same.");
+    }
+
+    let isCorrect = false;
+    if (validFormat) {
+      isCorrect = letters === expectedWord;
+    } else {
+      setMessage('Say both the word and spelling, like "cat c-a-t".');
+    }
+
+    entry.state = "result";
+    entry.result = {
+      isCorrect,
+      input: letters,
+      expected: expectedWord,
+      mismatchIndex: findMismatchIndex(letters, expectedWord)
+    };
+
+    updateWordStats(entry.word.word, isCorrect);
+
+    if (isCorrect) {
+      playSuccessTone();
+      state.session.right += 1;
+      setMessage("Correct. Moving to next word...");
+      state.autoNextTimer = window.setTimeout(() => {
+        moveToNextEntry();
+      }, 2000);
+    } else {
+      playFailTone();
+      state.session.wrong += 1;
+      setMessage("Incorrect. Tap for next word.");
+    }
+    render();
+  }
+
+  function updateWordStats(word, isCorrect) {
+    const key = normalizeWord(word);
+    if (!state.stats[key]) {
+      state.stats[key] = { right: 0, wrong: 0, last3: [] };
+    }
+    const bucket = state.stats[key];
+    if (isCorrect) {
+      bucket.right += 1;
+    } else {
+      bucket.wrong += 1;
+    }
+    bucket.last3.push(!!isCorrect);
+    if (bucket.last3.length > 3) {
+      bucket.last3 = bucket.last3.slice(-3);
+    }
+    saveJson(STORAGE_KEYS.stats, state.stats);
+  }
+
+  function moveToNextEntry() {
+    clearAutoNext();
+    clearSpellingIdleAutoSubmit();
+    if (state.isListening) {
+      stopListening(false);
+    }
+    if (state.cursor < state.timeline.length - 1) {
+      state.cursor += 1;
+      resetSpellingCapture();
+      render();
+      return;
+    }
+    pushNewWordEntry();
+    render();
+  }
+
+  function pushNewWordEntry() {
+    const lastWord = currentEntry() ? currentEntry().word.word : "";
+    const nextIndex = pickNextWordIndex(state.settings.mode, lastWord);
+    const nextWord = words[nextIndex];
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      word: nextWord,
+      state: "idle",
+      result: null
+    };
+    state.timeline.push(entry);
+    state.cursor = state.timeline.length - 1;
+    startPromptCycle(entry);
+    fetchAndCacheDefinition(nextWord.word);
+  }
+
+  function pickNextWordIndex(mode, lastWordText) {
+    const lastNorm = normalizeWord(lastWordText || "");
+    if (mode === "struggle") {
+      const weighted = words.map((word, idx) => {
+        const key = normalizeWord(word.word);
+        const bucket = state.stats[key] || { last3: [] };
+        const misses = bucket.last3.filter((v) => !v).length;
+        let weight = 1 + misses * 3;
+        if (normalizeWord(word.word) === lastNorm && words.length > 1) {
+          weight = Math.max(0.2, weight * 0.2);
+        }
+        return { idx, weight };
+      });
+      return weightedRandom(weighted);
+    }
+
+    if (!state.randomBag.length) {
+      state.randomBag = buildRandomBag(lastNorm);
+    }
+    let idx = state.randomBag.shift();
+    if (typeof idx !== "number") {
+      idx = 0;
+    }
+    if (words.length > 1 && normalizeWord(words[idx].word) === lastNorm) {
+      const alt = state.randomBag.findIndex((candidate) => normalizeWord(words[candidate].word) !== lastNorm);
+      if (alt >= 0) {
+        const candidate = state.randomBag.splice(alt, 1)[0];
+        state.randomBag.push(idx);
+        idx = candidate;
+      }
+    }
+    return idx;
+  }
+
+  function buildRandomBag(avoidWordNorm) {
+    const bag = words.map((_, idx) => idx);
+    for (let i = bag.length - 1; i > 0; i -= 1) {
+      const j = randomInt(i + 1);
+      const tmp = bag[i];
+      bag[i] = bag[j];
+      bag[j] = tmp;
+    }
+    if (avoidWordNorm && bag.length > 1 && normalizeWord(words[bag[0]].word) === avoidWordNorm) {
+      const swapWith = bag.findIndex((idx) => normalizeWord(words[idx].word) !== avoidWordNorm);
+      if (swapWith > 0) {
+        const tmp = bag[0];
+        bag[0] = bag[swapWith];
+        bag[swapWith] = tmp;
+      }
+    }
+    return bag;
+  }
+
+  function randomInt(maxExclusive) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const arr = new Uint32Array(1);
+      window.crypto.getRandomValues(arr);
+      return arr[0] % maxExclusive;
+    }
+    return Math.floor(Math.random() * maxExclusive);
+  }
+
+  function parseTranscript(transcript, targetWord) {
+    const raw = String(transcript || "")
+      .replace(/-/g, " ")
+      .replace(/[^a-zA-Z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const tokens = raw
+      ? raw.split(/\s+/).map((token) => token.toLowerCase()).filter(Boolean)
+      : [];
+    const targetTokens = normalizeSpeech(targetWord).split(/\s+/).filter(Boolean);
+    if (!tokens.length || !targetTokens.length) {
+      return { hasWord: false, letters: "" };
+    }
+
+    const starts = [];
+    for (let i = 0; i <= tokens.length - targetTokens.length; i += 1) {
+      let match = true;
+      for (let j = 0; j < targetTokens.length; j += 1) {
+        if (tokens[i + j] !== targetTokens[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        starts.push(i);
+      }
+    }
+
+    if (!starts.length) {
+      return { hasWord: false, letters: "" };
+    }
+
+    const start = starts[starts.length - 1];
+    const remainder = tokens.slice(start + targetTokens.length);
+    const letters = [];
+    let capitalizeNext = false;
+    for (const token of remainder) {
+      const normalized = token.replace(/[^a-z]/g, "");
+      if (!normalized) continue;
+      if (normalized === "capital") {
+        capitalizeNext = true;
+        continue;
+      }
+      if (LETTER_TOKEN_MAP[normalized]) {
+        const mapped = LETTER_TOKEN_MAP[normalized];
+        if (mapped === " ") {
+          letters.push(" ");
+          continue;
+        }
+        letters.push(capitalizeNext ? mapped.toUpperCase() : mapped);
+        capitalizeNext = false;
+        continue;
+      }
+      if (normalized.length === 1 && /[a-z]/.test(normalized)) {
+        letters.push(capitalizeNext ? normalized.toUpperCase() : normalized);
+        capitalizeNext = false;
+        continue;
+      }
+      if (/^[a-z]+$/.test(normalized)) {
+        for (const ch of normalized) {
+          letters.push(capitalizeNext ? ch.toUpperCase() : ch);
+          capitalizeNext = false;
+        }
+      }
+    }
+
+    return { hasWord: true, letters: letters.join("") };
+  }
+
+  function findMismatchIndex(input, expected) {
+    const len = Math.min(input.length, expected.length);
+    for (let i = 0; i < len; i += 1) {
+      if (input[i] !== expected[i]) return i;
+    }
+    if (input.length !== expected.length) return len;
+    return -1;
+  }
+
+  function render() {
+    const entry = currentEntry();
+    if (!entry) return;
+
+    ui.body.dataset.state = entry.state;
+    ui.body.dataset.result = entry.result ? (entry.result.isCorrect ? "correct" : "wrong") : "none";
+
+    const def = getDefinition(entry.word.word, entry.word.seedDefinition);
+    if (def.isThirdParty && def.url) {
+      ui.definition.innerHTML = `${escapeHtml(def.text)} <a class="definition-source" href="${escapeHtml(def.url)}" target="_blank" rel="noopener noreferrer">source</a>`;
+    } else {
+      ui.definition.textContent = def.text;
+    }
+
+    const parsed = parseTranscript(state.transcript, entry.word.word);
+    if (entry.state === "result") {
+      if (entry.result && entry.result.isCorrect) {
+        ui.liveLetters.textContent = "Correct!";
+      } else {
+        const correct = escapeHtml(entry.word.word || "");
+        const yours = escapeHtml((entry.result && entry.result.input) || "(none)");
+        ui.liveLetters.innerHTML = `<span class="result-main">${correct}</span><span class="result-sub">${yours}</span>`;
+      }
+    } else if (entry.state === "spelling") {
+      if (state.settings.showLiveLetters) {
+        ui.liveLetters.textContent = parsed.letters || "";
+      } else {
+        ui.liveLetters.textContent = parsed.letters ? maskLettersWithDots(parsed.letters) : "";
+      }
+    } else {
+      ui.liveLetters.textContent = "";
+    }
+
+    ui.sessionStats.textContent = `${state.session.right} right / ${state.session.wrong} wrong`;
+  }
+
+  function buildMismatchHtml(correctWord, mismatchIndex) {
+    if (mismatchIndex < 0) {
+      return `Correct spelling: <strong>${correctWord}</strong>`;
+    }
+    const safe = escapeHtml(correctWord);
+    const prefix = safe.slice(0, mismatchIndex);
+    const mismatch = safe.slice(mismatchIndex, mismatchIndex + 1);
+    const suffix = safe.slice(mismatchIndex + 1);
+    return `Correct spelling: <span class="match">${prefix}</span><span class="mismatch">${mismatch}</span>${suffix}`;
+  }
+
+  function currentEntry() {
+    if (state.cursor < 0 || state.cursor >= state.timeline.length) return null;
+    return state.timeline[state.cursor];
+  }
+
+  function setMessage(text) {
+    // Messages are kept for optional debugging but not shown in simplified UI.
+    void text;
+  }
+
+  function resetSpellingCapture() {
+    state.transcript = "";
+    state.finalTranscript = "";
+    state.interimTranscript = "";
+    state.lockedLetters = "";
+  }
+
+  function clearAutoNext() {
+    if (state.autoNextTimer) {
+      window.clearTimeout(state.autoNextTimer);
+      state.autoNextTimer = null;
+    }
+  }
+
+  function scheduleSpellingIdleAutoSubmit() {
+    clearSpellingIdleAutoSubmit();
+    state.spellingIdleTimer = window.setTimeout(() => {
+      const entry = currentEntry();
+      if (!entry || entry.state !== "spelling") return;
+      if (state.pendingEvaluation) return;
+      submitSpelling();
+    }, SPELLING_IDLE_SUBMIT_MS);
+  }
+
+  function clearSpellingIdleAutoSubmit() {
+    if (state.spellingIdleTimer) {
+      window.clearTimeout(state.spellingIdleTimer);
+      state.spellingIdleTimer = null;
+    }
+  }
+
+  function maskLettersWithDots(text) {
+    return String(text || "").replace(/[^\s]/g, "•");
+  }
+
+  function speakWordPrompt(word) {
+    return speakWordPromptSequence(word);
+  }
+
+  async function speakWordPromptSequence(word) {
+    const introOk = await speakText("Spell the word.");
+    const audioOk = await playPronunciationAudio(word);
+    if (audioOk) return introOk || audioOk;
+    const fallbackOk = await speakText(word);
+    return introOk || fallbackOk;
+  }
+
+  function playPronunciationAudio(word) {
+    const key = normalizeWord(word);
+    const meta = state.definitionMeta[key] || {};
+    const url = typeof meta.audioUrl === "string" ? meta.audioUrl.trim() : "";
+    if (!url) return Promise.resolve(false);
+
+    stopPronunciationAudio();
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      state.activePronunciationAudio = audio;
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        if (state.activePronunciationAudio === audio) {
+          state.activePronunciationAudio = null;
+        }
+        resolve(ok);
+      };
+      const timeout = window.setTimeout(() => {
+        finish(false);
+      }, 7000);
+      audio.onended = () => {
+        window.clearTimeout(timeout);
+        finish(true);
+      };
+      audio.onerror = () => {
+        window.clearTimeout(timeout);
+        finish(false);
+      };
+      audio.onabort = () => {
+        window.clearTimeout(timeout);
+        finish(false);
+      };
+      audio.play().catch(() => {
+        window.clearTimeout(timeout);
+        finish(false);
+      });
+    });
+  }
+
+  function stopPronunciationAudio() {
+    if (!state.activePronunciationAudio) return;
+    try {
+      state.activePronunciationAudio.pause();
+      state.activePronunciationAudio.currentTime = 0;
+    } catch (error) {
+      // No-op
+    }
+    state.activePronunciationAudio = null;
+  }
+
+  function speakText(text) {
+    if (!window.speechSynthesis || !text) return Promise.resolve(false);
+    const synth = window.speechSynthesis;
+
+    if (!state.speechVoicesReady && synth.getVoices().length) {
+      state.speechVoicesReady = true;
+      if (!state.speechVoice) {
+        state.speechVoice = synth.getVoices().find((voice) => /^en(-|_)/i.test(voice.lang || "")) || null;
+      }
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        resolve(ok);
+      };
+      const speakOnce = (allowRetry) => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 0.88;
+        utter.pitch = 1;
+        utter.lang = state.speechVoice ? state.speechVoice.lang : "en-US";
+        if (state.speechVoice) {
+          utter.voice = state.speechVoice;
+        }
+        utter.onend = () => {
+          finish(true);
+        };
+        utter.onerror = () => {
+          if (!allowRetry) {
+            finish(false);
+            return;
+          }
+          window.setTimeout(() => {
+            speakOnce(false);
+          }, 140);
+        };
+        try {
+          synth.resume();
+        } catch (error) {
+          // No-op
+        }
+        synth.cancel();
+        synth.speak(utter);
+      };
+      speakOnce(true);
+    });
+  }
+
+  function playSuccessTone() {
+    playTone(880, 0.11);
+    window.setTimeout(() => playTone(1174, 0.12), 120);
+  }
+
+  function playFailTone() {
+    playTone(240, 0.2);
+    window.setTimeout(() => playTone(180, 0.22), 140);
+  }
+
+  function playTone(freq, durationSec) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    osc.type = "sine";
+    gain.gain.value = 0.001;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.17, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+    osc.start(now);
+    osc.stop(now + durationSec + 0.03);
+    osc.onended = () => ctx.close();
+  }
+
+  function getDefinition(word, seed) {
+    const key = normalizeWord(word);
+    if (state.definitions[key]) {
+      const meta = state.definitionMeta[key] || {};
+      const isThirdParty = Object.prototype.hasOwnProperty.call(state.definitionMeta, key) ? !!meta.fromApi : true;
+      return {
+        text: String(state.definitions[key]),
+        isThirdParty,
+        url: meta.url || `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
+      };
+    }
+    return {
+      text: sanitizeSeedDefinition(seed || "No definition available.", [word]),
+      isThirdParty: false,
+      url: ""
+    };
+  }
+
+  function sanitizeSeedDefinition(seed, acceptedList) {
+    let text = String(seed || "").trim();
+    const candidates = Array.isArray(acceptedList) && acceptedList.length ? acceptedList : [];
+    for (const candidate of candidates) {
+      const cleaned = String(candidate || "").trim();
+      if (!cleaned) continue;
+      const escaped = cleaned.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      text = text.replace(new RegExp(`\\b${escaped}\\b`, "ig"), "____");
+    }
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  async function fetchAndCacheDefinition(word) {
+    const key = normalizeWord(word);
+    const existingMeta = state.definitionMeta[key];
+    if (state.definitions[key] && existingMeta && Object.prototype.hasOwnProperty.call(existingMeta, "audioUrl")) return;
+
+    try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 3500);
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, {
+        signal: controller.signal
+      });
+      window.clearTimeout(timeout);
+      if (!response.ok) return;
+      const data = await response.json();
+      const definition =
+        Array.isArray(data) &&
+        data[0] &&
+        Array.isArray(data[0].meanings) &&
+        data[0].meanings[0] &&
+        Array.isArray(data[0].meanings[0].definitions) &&
+        data[0].meanings[0].definitions[0] &&
+        data[0].meanings[0].definitions[0].definition;
+      const phonetics =
+        Array.isArray(data) &&
+        data[0] &&
+        Array.isArray(data[0].phonetics)
+          ? data[0].phonetics
+          : [];
+      const audioItem = phonetics.find((item) => item && typeof item.audio === "string" && item.audio.trim());
+      const audioUrl = audioItem && audioItem.audio ? audioItem.audio.trim() : "";
+      if (definition && typeof definition === "string") {
+        state.definitions[key] = definition.trim();
+        saveJson(STORAGE_KEYS.definitions, state.definitions);
+        state.definitionMeta[key] = {
+          fromApi: true,
+          url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+          audioUrl
+        };
+        saveJson(STORAGE_KEYS.definitionMeta, state.definitionMeta);
+        const entry = currentEntry();
+        if (entry && normalizeWord(entry.word.word) === key) {
+          render();
+        }
+      } else if (!existingMeta || !Object.prototype.hasOwnProperty.call(existingMeta, "audioUrl")) {
+        state.definitionMeta[key] = {
+          fromApi: !!(existingMeta && existingMeta.fromApi),
+          url: (existingMeta && existingMeta.url) || `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+          audioUrl
+        };
+        saveJson(STORAGE_KEYS.definitionMeta, state.definitionMeta);
+      }
+    } catch (error) {
+      // No-op: seeded local definition remains visible.
+    }
+  }
+
+  function weightedRandom(list) {
+    const total = list.reduce((sum, item) => sum + item.weight, 0);
+    let pick = Math.random() * total;
+    for (const item of list) {
+      pick -= item.weight;
+      if (pick <= 0) return item.idx;
+    }
+    return list[list.length - 1].idx;
+  }
+
+  function normalizeWord(word) {
+    return String(word || "")
+      .toLowerCase()
+      .replace(/[^a-z]/g, "");
+  }
+
+  function normalizeSpeech(text) {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/-/g, " ")
+      .replace(/[^a-z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function loadJson(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function saveJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      // Storage can fail in private mode; app should still run.
+    }
+  }
+})();
+    </script>
+  </body>
+</html>
