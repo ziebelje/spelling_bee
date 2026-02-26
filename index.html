@@ -135,6 +135,7 @@ body[data-state="result"][data-result="wrong"] {
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 1rem;
+  position: relative;
 }
 
 .session-stats {
@@ -142,6 +143,47 @@ body[data-state="result"][data-result="wrong"] {
   justify-self: start;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.debug-log {
+  margin: 0;
+  border-radius: 0.7rem;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  max-height: 20vh;
+  overflow: auto;
+}
+
+.manual-controls {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.manual-btn {
+  min-height: 4.2rem;
+  border: 0;
+  border-radius: 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.manual-btn.correct {
+  background: rgba(23, 138, 62, 0.92);
+}
+
+.manual-btn.incorrect {
+  background: rgba(181, 40, 40, 0.92);
 }
 
 .start-btn {
@@ -204,6 +246,13 @@ body[data-state="result"][data-result="wrong"] {
             <option value="struggle">Struggle</option>
           </select>
         </label>
+        <label class="field">
+          <span>Input mode</span>
+          <select id="inputModeSelect">
+            <option value="microphone">Microphone</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
         <label class="field toggle">
           <span>Live letters</span>
           <input id="liveLettersToggle" type="checkbox" checked />
@@ -240,6 +289,11 @@ body[data-state="result"][data-result="wrong"] {
       <p id="definition" class="definition" aria-live="polite"></p>
       <p id="liveLetters" class="live-letters" aria-live="polite"></p>
       <p id="sessionStats" class="session-stats"></p>
+      <pre id="debugLog" class="debug-log" aria-live="polite"></pre>
+      <div id="manualControls" class="manual-controls" hidden>
+        <button id="manualCorrectBtn" class="manual-btn correct" type="button">Correct</button>
+        <button id="manualIncorrectBtn" class="manual-btn incorrect" type="button">Incorrect</button>
+      </div>
     </main>
 
     <script>
@@ -399,7 +453,59 @@ body[data-state="result"][data-result="wrong"] {
     { word: "slough", grade: 6, seedDefinition: "To shed or cast off; also a swamp in some dialects." },
     { word: "puissance", grade: 6, seedDefinition: "Power or strength." },
     { word: "pheromone", grade: 6, seedDefinition: "A chemical signal released by an animal affecting others of its species." },
-    { word: "chartreuse", grade: 6, seedDefinition: "A yellow-green color." }
+    { word: "chartreuse", grade: 6, seedDefinition: "A yellow-green color." },
+
+    // Grade 7
+    { word: "gangly", grade: 7, seedDefinition: "Tall and thin in a loose or awkward way." },
+    { word: "riveted", grade: 7, seedDefinition: "Fascinated and holding complete attention." },
+    { word: "zeal", grade: 7, seedDefinition: "Great energy and enthusiasm for a cause." },
+    { word: "fiberglass", grade: 7, seedDefinition: "A strong material made from fine glass fibers." },
+    { word: "enthusiastic", grade: 7, seedDefinition: "Showing eager enjoyment and interest." },
+    { word: "scurrying", grade: 7, seedDefinition: "Moving quickly with short hurried steps." },
+    { word: "dismissal", grade: 7, seedDefinition: "The act of sending someone away or ending employment." },
+    { word: "nomination", grade: 7, seedDefinition: "The act of officially suggesting someone for a role or award." },
+    { word: "comrades", grade: 7, seedDefinition: "Companions or close associates sharing an activity." },
+    { word: "repugnant", grade: 7, seedDefinition: "Extremely unpleasant; offensive." },
+    { word: "parachute", grade: 7, seedDefinition: "A device that slows a fall through the air." },
+    { word: "foreseeable", grade: 7, seedDefinition: "Able to be predicted or expected." },
+    { word: "reclusive", grade: 7, seedDefinition: "Avoiding social contact; preferring to be alone." },
+    { word: "alfalfa", grade: 7, seedDefinition: "A plant commonly grown as livestock feed." },
+    { word: "bayonet", grade: 7, seedDefinition: "A blade that can be fixed to the end of a rifle." },
+    { word: "beautician", grade: 7, seedDefinition: "A person trained in beauty treatments." },
+    { word: "ultimatum", grade: 7, seedDefinition: "A final demand backed by consequences." },
+    { word: "swaggering", grade: 7, seedDefinition: "Walking or behaving with bold, arrogant confidence." },
+    { word: "plaid", grade: 7, seedDefinition: "A patterned cloth with crossing stripes." },
+    { word: "whittled", grade: 7, seedDefinition: "Carved by cutting small shavings, often from wood." },
+    { word: "salvaged", grade: 7, seedDefinition: "Saved or recovered from loss or damage." },
+    { word: "discipline", grade: 7, seedDefinition: "Training that develops control and orderly behavior." },
+    { word: "dignitaries", grade: 7, seedDefinition: "Important or high-ranking people." },
+    { word: "skittish", grade: 7, seedDefinition: "Easily frightened or nervous." },
+    { word: "opportunist", grade: 7, seedDefinition: "A person who takes advantage of situations for personal gain." },
+    { word: "sporadic", grade: 7, seedDefinition: "Occurring at irregular intervals." },
+    { word: "invincible", grade: 7, seedDefinition: "Too strong to be defeated." },
+    { word: "laborious", grade: 7, seedDefinition: "Requiring considerable effort and time." },
+    { word: "ratify", grade: 7, seedDefinition: "To formally approve or confirm." },
+    { word: "compassionate", grade: 7, seedDefinition: "Showing sympathy and concern for others." },
+    { word: "officially", grade: 7, seedDefinition: "In a formal or authorized manner." },
+    { word: "amicable", grade: 7, seedDefinition: "Friendly and without hostility." },
+    { word: "equations", grade: 7, seedDefinition: "Statements in math showing two expressions are equal." },
+    { word: "whinnying", grade: 7, seedDefinition: "Making the high-pitched neighing sound of a horse." },
+    { word: "chimneys", grade: 7, seedDefinition: "Vertical passages that carry smoke from a fireplace or furnace." },
+    { word: "dirge", grade: 7, seedDefinition: "A slow mournful song, often for funerals." },
+    { word: "depots", grade: 7, seedDefinition: "Places where goods or vehicles are stored." },
+    { word: "fissures", grade: 7, seedDefinition: "Narrow cracks or splits in rock or other materials." },
+    { word: "unfamiliar", grade: 7, seedDefinition: "Not known from previous experience." },
+    { word: "pizzeria", grade: 7, seedDefinition: "A restaurant where pizza is made and sold." },
+    { word: "careened", grade: 7, seedDefinition: "Moved quickly and unsteadily." },
+    { word: "dictatorship", grade: 7, seedDefinition: "A government controlled by one ruler with absolute power." },
+    { word: "promenade", grade: 7, seedDefinition: "A walk taken for pleasure, often in a public place." },
+    { word: "renowned", grade: 7, seedDefinition: "Widely known and admired." },
+    { word: "appointment", grade: 7, seedDefinition: "An arranged meeting at a specific time." },
+    { word: "scalpel", grade: 7, seedDefinition: "A small sharp knife used in surgery." },
+    { word: "bulletin", grade: 7, seedDefinition: "A brief official announcement or report." },
+    { word: "crematorium", grade: 7, seedDefinition: "A place where bodies are cremated." },
+    { word: "exuberant", grade: 7, seedDefinition: "Filled with lively energy and joy." },
+    { word: "assignment", grade: 7, seedDefinition: "A task or piece of work given to someone." }
   ];
 
   window.SPELLING_BEE_WORDS = WORD_BANK;
@@ -431,17 +537,23 @@ body[data-state="result"][data-result="wrong"] {
     definition: document.getElementById("definition"),
     liveLetters: document.getElementById("liveLetters"),
     sessionStats: document.getElementById("sessionStats"),
+    debugLog: document.getElementById("debugLog"),
     modeSelect: document.getElementById("modeSelect"),
-    liveLettersToggle: document.getElementById("liveLettersToggle")
+    inputModeSelect: document.getElementById("inputModeSelect"),
+    liveLettersToggle: document.getElementById("liveLettersToggle"),
+    manualControls: document.getElementById("manualControls"),
+    manualCorrectBtn: document.getElementById("manualCorrectBtn"),
+    manualIncorrectBtn: document.getElementById("manualIncorrectBtn")
   };
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const SPELLING_IDLE_SUBMIT_MS = 4000;
+  const STRUGGLE_ZERO_MISS_SHARE = 0.1;
 
   const state = {
     timeline: [],
     cursor: -1,
-    settings: loadJson(STORAGE_KEYS.settings, { mode: "random", showLiveLetters: true }),
+    settings: loadJson(STORAGE_KEYS.settings, { mode: "random", inputMode: "microphone", showLiveLetters: true }),
     stats: loadJson(STORAGE_KEYS.stats, {}),
     definitions: loadJson(STORAGE_KEYS.definitions, {}),
     definitionMeta: loadJson(STORAGE_KEYS.definitionMeta, {}),
@@ -462,7 +574,8 @@ body[data-state="result"][data-result="wrong"] {
     appStarted: false,
     wordStatsSortKey: "grade",
     randomBag: [],
-    activePronunciationAudio: null
+    activePronunciationAudio: null,
+    debugLogs: []
   };
 
   const LETTER_TOKEN_MAP = {
@@ -488,7 +601,7 @@ body[data-state="result"][data-result="wrong"] {
     t: "t", tee: "t", tea: "t",
     u: "u", you: "u",
     v: "v", vee: "v",
-    w: "w", doubleyou: "w", "double-u": "w",
+    w: "w", doubleyou: "w", doubleu: "w",
     x: "x", ex: "x",
     y: "y", why: "y",
     z: "z", zee: "z", zed: "z",
@@ -498,8 +611,19 @@ body[data-state="result"][data-result="wrong"] {
   init();
 
   function init() {
+    state.settings = {
+      mode: state.settings.mode === "struggle" ? "struggle" : "random",
+      inputMode: state.settings.inputMode === "manual" ? "manual" : "microphone",
+      showLiveLetters: !!state.settings.showLiveLetters
+    };
     ui.modeSelect.value = state.settings.mode;
+    ui.inputModeSelect.value = state.settings.inputMode;
     ui.liveLettersToggle.checked = !!state.settings.showLiveLetters;
+    debugLog("init", {
+      mode: state.settings.mode,
+      inputMode: state.settings.inputMode,
+      hasSpeechRecognition: !!SpeechRecognition
+    });
     setupSpeechSynthesis();
     bindEvents();
     setupRecognition();
@@ -522,6 +646,12 @@ body[data-state="result"][data-result="wrong"] {
       setMessage("Mode updated.");
     });
 
+    ui.inputModeSelect.addEventListener("change", () => {
+      state.settings.inputMode = ui.inputModeSelect.value === "manual" ? "manual" : "microphone";
+      saveJson(STORAGE_KEYS.settings, state.settings);
+      render();
+    });
+
     ui.liveLettersToggle.addEventListener("change", () => {
       state.settings.showLiveLetters = ui.liveLettersToggle.checked;
       saveJson(STORAGE_KEYS.settings, state.settings);
@@ -539,6 +669,12 @@ body[data-state="result"][data-result="wrong"] {
       const key = ui.wordStatsSort.value;
       state.wordStatsSortKey = key === "allTime" || key === "last3" ? key : "grade";
       renderWordStatsTable();
+    });
+    ui.manualCorrectBtn.addEventListener("click", () => {
+      submitManualResult(true);
+    });
+    ui.manualIncorrectBtn.addEventListener("click", () => {
+      submitManualResult(false);
     });
 
     window.addEventListener("pointerup", handleScreenTap, { passive: true });
@@ -620,7 +756,7 @@ body[data-state="result"][data-result="wrong"] {
   function handleScreenTap(event) {
     if (!state.appStarted) return;
     if (!ui.practiceScreen.contains(event.target)) return;
-    const interactive = event.target.closest("select, input, label, option");
+    const interactive = event.target.closest("select, input, label, option, button");
     if (interactive) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     handleForwardTap();
@@ -646,17 +782,28 @@ body[data-state="result"][data-result="wrong"] {
 
   function setupRecognition() {
     if (!SpeechRecognition) {
+      debugLog("speech_recognition_unavailable");
       setMessage("Speech recognition is unavailable in this browser.");
       return;
     }
+    debugLog("speech_recognition_setup_start");
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
     recognition.onresult = onRecognitionResult;
+    recognition.onstart = () => {
+      debugLog("speech_recognition_onstart");
+      state.isListening = true;
+      render();
+    };
     recognition.onerror = (event) => {
       const code = event && event.error ? event.error : "";
+      debugLog("speech_recognition_onerror", {
+        error: code || "unknown",
+        message: event && event.message ? event.message : ""
+      });
       if (code === "not-allowed" || code === "service-not-allowed") {
         setMessage("Microphone blocked. Allow microphone in Chrome site settings, then retry.");
       } else if (code === "audio-capture") {
@@ -666,6 +813,7 @@ body[data-state="result"][data-result="wrong"] {
       }
     };
     recognition.onend = () => {
+      debugLog("speech_recognition_onend", { pendingEvaluation: !!state.pendingEvaluation });
       state.isListening = false;
       if (state.pendingEvaluation) {
         state.pendingEvaluation = false;
@@ -674,6 +822,7 @@ body[data-state="result"][data-result="wrong"] {
       render();
     };
     state.recognition = recognition;
+    debugLog("speech_recognition_setup_ready");
   }
 
   function onRecognitionResult(event) {
@@ -690,21 +839,25 @@ body[data-state="result"][data-result="wrong"] {
     state.finalTranscript = finalText.trim();
     state.interimTranscript = interimText.trim();
     state.transcript = `${state.finalTranscript} ${state.interimTranscript}`.trim();
+    debugLog("speech_recognition_onresult", {
+      finalChars: state.finalTranscript.length,
+      interimChars: state.interimTranscript.length
+    });
 
     const entry = currentEntry();
     if (!entry) return;
     if (entry.state !== "spelling") return;
 
-    const parsed = parseTranscript(state.finalTranscript, entry.word.word);
-    if (parsed.hasWord && parsed.letters) {
-      if (!state.lockedLetters || parsed.letters.startsWith(state.lockedLetters)) {
-        state.lockedLetters = parsed.letters;
+    const liveParsed = parseTranscript(state.transcript, entry.word.word);
+    if (liveParsed.hasLetters && liveParsed.letters) {
+      if (!state.lockedLetters || liveParsed.letters.startsWith(state.lockedLetters)) {
+        state.lockedLetters = liveParsed.letters;
       }
     }
     scheduleSpellingIdleAutoSubmit();
 
-    const liveParsed = parseTranscript(state.transcript, entry.word.word);
-    if (liveParsed.hasWord && liveParsed.letters && liveParsed.letters === entry.word.word) {
+    const liveLetters = getBestCapturedLetters(entry.word.word);
+    if (liveLetters && liveLetters === entry.word.word) {
       submitSpelling();
       return;
     }
@@ -722,7 +875,17 @@ body[data-state="result"][data-result="wrong"] {
     }
 
     if (entry.state === "spelling") {
+      if (state.settings.inputMode === "manual") {
+        entry.state = "review";
+        entry.result = null;
+        render();
+        return;
+      }
       submitSpelling();
+      return;
+    }
+
+    if (entry.state === "review") {
       return;
     }
 
@@ -744,18 +907,25 @@ body[data-state="result"][data-result="wrong"] {
       if (!live || live.id !== entry.id) return;
     }
     render();
+    if (state.settings.inputMode === "manual") {
+      debugLog("start_spelling_manual_mode");
+      state.isListening = false;
+      return;
+    }
     if (state.recognition) {
+      debugLog("start_spelling_mic_mode");
       const micReady = await ensureMicrophoneAccess();
-      if (!micReady) {
-        state.isListening = false;
-        render();
-        return;
-      }
+      debugLog("microphone_access_preflight_result", { granted: !!micReady });
       try {
+        debugLog("speech_recognition_start_attempt");
         state.recognition.start();
         state.isListening = true;
         scheduleSpellingIdleAutoSubmit();
       } catch (error) {
+        debugLog("speech_recognition_start_failed", {
+          name: error && error.name ? error.name : "Error",
+          message: error && error.message ? error.message : ""
+        });
         state.isListening = false;
       }
     }
@@ -785,19 +955,27 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   async function ensureMicrophoneAccess() {
+    debugLog("microphone_access_preflight_start", {
+      hasMediaDevices: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    });
     if (state.micPermissionGranted) return true;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setMessage("Microphone API unavailable. Open on https:// or http://localhost in Chrome.");
-      return false;
+      debugLog("microphone_access_preflight_skipped_no_getusermedia");
+      return true;
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
       state.micPermissionGranted = true;
+      debugLog("microphone_access_preflight_granted");
       return true;
     } catch (error) {
       const name = error && error.name ? error.name : "";
+      debugLog("microphone_access_preflight_failed", {
+        name,
+        message: error && error.message ? error.message : ""
+      });
       if (name === "NotAllowedError" || name === "SecurityError") {
         setMessage("Microphone permission denied. In Chrome site settings, allow Microphone. If using file://, run from localhost.");
       } else if (name === "NotFoundError") {
@@ -822,6 +1000,7 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   function stopListening(andEvaluate) {
+    debugLog("stop_listening", { andEvaluate: !!andEvaluate, isListening: !!state.isListening });
     clearSpellingIdleAutoSubmit();
     state.pendingEvaluation = !!andEvaluate;
     if (state.recognition && state.isListening) {
@@ -840,10 +1019,9 @@ body[data-state="result"][data-result="wrong"] {
     const entry = currentEntry();
     if (!entry) return;
 
-    const parsed = parseTranscript(state.transcript, entry.word.word);
     const expectedWord = String(entry.word.word || "");
-    const letters = parsed.letters || "";
-    let validFormat = parsed.hasWord && letters.length > 0;
+    const letters = getBestCapturedLetters(expectedWord);
+    let validFormat = letters.length > 0;
 
     if (state.lockedLetters && letters && !letters.startsWith(state.lockedLetters)) {
       validFormat = false;
@@ -854,18 +1032,31 @@ body[data-state="result"][data-result="wrong"] {
     if (validFormat) {
       isCorrect = letters === expectedWord;
     } else {
-      setMessage('Say both the word and spelling, like "cat c-a-t".');
+      setMessage('Say letters to spell the word, like "c-a-t".');
     }
 
+    finishAttemptResult(isCorrect, letters, expectedWord);
+  }
+
+  function submitManualResult(isCorrect) {
+    const entry = currentEntry();
+    if (!entry || entry.state !== "review") return;
+    clearSpellingIdleAutoSubmit();
+    finishAttemptResult(!!isCorrect, "", String(entry.word.word || ""));
+  }
+
+  function finishAttemptResult(isCorrect, input, expectedWord) {
+    const entry = currentEntry();
+    if (!entry) return;
     entry.state = "result";
     entry.result = {
-      isCorrect,
-      input: letters,
-      expected: expectedWord,
-      mismatchIndex: findMismatchIndex(letters, expectedWord)
+      isCorrect: !!isCorrect,
+      input: String(input || ""),
+      expected: String(expectedWord || ""),
+      mismatchIndex: findMismatchIndex(String(input || ""), String(expectedWord || ""))
     };
 
-    updateWordStats(entry.word.word, isCorrect);
+    updateWordStats(entry.word.word, !!isCorrect);
 
     if (isCorrect) {
       playSuccessTone();
@@ -935,17 +1126,36 @@ body[data-state="result"][data-result="wrong"] {
   function pickNextWordIndex(mode, lastWordText) {
     const lastNorm = normalizeWord(lastWordText || "");
     if (mode === "struggle") {
-      const weighted = words.map((word, idx) => {
+      const cleanCandidates = [];
+      const missedCandidates = [];
+      words.forEach((word, idx) => {
         const key = normalizeWord(word.word);
         const bucket = state.stats[key] || { last3: [] };
-        const misses = bucket.last3.filter((v) => !v).length;
-        let weight = 1 + misses * 3;
+        const last3 = Array.isArray(bucket.last3) ? bucket.last3 : [];
+        const misses = last3.filter((v) => !v).length;
+
+        let weight = misses > 0 ? misses * misses : 1;
         if (normalizeWord(word.word) === lastNorm && words.length > 1) {
           weight = Math.max(0.2, weight * 0.2);
         }
-        return { idx, weight };
+        const candidate = { idx, weight };
+        if (misses > 0) {
+          missedCandidates.push(candidate);
+        } else {
+          cleanCandidates.push(candidate);
+        }
       });
-      return weightedRandom(weighted);
+
+      if (!missedCandidates.length) {
+        return weightedRandom(cleanCandidates);
+      }
+      if (!cleanCandidates.length) {
+        return weightedRandom(missedCandidates);
+      }
+      if (Math.random() < STRUGGLE_ZERO_MISS_SHARE) {
+        return weightedRandom(cleanCandidates);
+      }
+      return weightedRandom(missedCandidates);
     }
 
     if (!state.randomBag.length) {
@@ -995,6 +1205,7 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   function parseTranscript(transcript, targetWord) {
+    void targetWord;
     const raw = String(transcript || "")
       .replace(/-/g, " ")
       .replace(/[^a-zA-Z\s]/g, " ")
@@ -1003,31 +1214,24 @@ body[data-state="result"][data-result="wrong"] {
     const tokens = raw
       ? raw.split(/\s+/).map((token) => token.toLowerCase()).filter(Boolean)
       : [];
-    const targetTokens = normalizeSpeech(targetWord).split(/\s+/).filter(Boolean);
-    if (!tokens.length || !targetTokens.length) {
-      return { hasWord: false, letters: "" };
+    if (!tokens.length) {
+      return { hasLetters: false, letters: "" };
     }
 
-    const starts = [];
-    for (let i = 0; i <= tokens.length - targetTokens.length; i += 1) {
-      let match = true;
-      for (let j = 0; j < targetTokens.length; j += 1) {
-        if (tokens[i + j] !== targetTokens[j]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        starts.push(i);
+    const letterTokenIndexes = [];
+    for (let i = 0; i < tokens.length; i += 1) {
+      const normalized = tokens[i].replace(/[^a-z]/g, "");
+      if (!normalized) continue;
+      if (normalized === "capital" || normalized === "space" || LETTER_TOKEN_MAP[normalized] || (normalized.length === 1 && /[a-z]/.test(normalized))) {
+        letterTokenIndexes.push(i);
       }
     }
 
-    if (!starts.length) {
-      return { hasWord: false, letters: "" };
+    if (!letterTokenIndexes.length) {
+      return { hasLetters: false, letters: "" };
     }
 
-    const start = starts[starts.length - 1];
-    const remainder = tokens.slice(start + targetTokens.length);
+    const remainder = tokens.slice(letterTokenIndexes[0]);
     const letters = [];
     let capitalizeNext = false;
     for (const token of remainder) {
@@ -1052,15 +1256,20 @@ body[data-state="result"][data-result="wrong"] {
         capitalizeNext = false;
         continue;
       }
-      if (/^[a-z]+$/.test(normalized)) {
-        for (const ch of normalized) {
-          letters.push(capitalizeNext ? ch.toUpperCase() : ch);
-          capitalizeNext = false;
-        }
-      }
     }
 
-    return { hasWord: true, letters: letters.join("") };
+    return { hasLetters: letters.length > 0, letters: letters.join("") };
+  }
+
+  function getBestCapturedLetters(targetWord) {
+    const parsed = parseTranscript(state.transcript, targetWord);
+    const liveLetters = parsed.hasLetters ? parsed.letters : "";
+    const locked = String(state.lockedLetters || "");
+    if (!locked) return liveLetters;
+    if (!liveLetters) return locked;
+    if (liveLetters.startsWith(locked)) return liveLetters;
+    if (locked.startsWith(liveLetters)) return locked;
+    return locked;
   }
 
   function findMismatchIndex(input, expected) {
@@ -1086,7 +1295,7 @@ body[data-state="result"][data-result="wrong"] {
       ui.definition.textContent = def.text;
     }
 
-    const parsed = parseTranscript(state.transcript, entry.word.word);
+    const letters = getBestCapturedLetters(entry.word.word);
     if (entry.state === "result") {
       if (entry.result && entry.result.isCorrect) {
         ui.liveLetters.textContent = "Correct!";
@@ -1095,28 +1304,47 @@ body[data-state="result"][data-result="wrong"] {
         const yours = escapeHtml((entry.result && entry.result.input) || "(none)");
         ui.liveLetters.innerHTML = `<span class="result-main">${correct}</span><span class="result-sub">${yours}</span>`;
       }
+    } else if (entry.state === "review") {
+      ui.liveLetters.textContent = entry.word.word || "";
     } else if (entry.state === "spelling") {
-      if (state.settings.showLiveLetters) {
-        ui.liveLetters.textContent = parsed.letters || "";
+      if (state.settings.inputMode === "manual") {
+        ui.liveLetters.textContent = "";
+      } else if (state.settings.showLiveLetters) {
+        ui.liveLetters.textContent = letters || "";
       } else {
-        ui.liveLetters.textContent = parsed.letters ? maskLettersWithDots(parsed.letters) : "";
+        ui.liveLetters.textContent = letters ? maskLettersWithDots(letters) : "";
       }
     } else {
       ui.liveLetters.textContent = "";
     }
 
+    ui.manualControls.hidden = !(state.settings.inputMode === "manual" && entry.state === "review");
+
     ui.sessionStats.textContent = `${state.session.right} right / ${state.session.wrong} wrong`;
+    if (ui.debugLog) {
+      ui.debugLog.textContent = state.debugLogs.length ? state.debugLogs.join("\n") : "No logs yet.";
+    }
   }
 
-  function buildMismatchHtml(correctWord, mismatchIndex) {
-    if (mismatchIndex < 0) {
-      return `Correct spelling: <strong>${correctWord}</strong>`;
+  function debugLog(event, payload) {
+    const stamp = new Date().toISOString().slice(11, 19);
+    let line = `${stamp} ${event}`;
+    if (typeof payload !== "undefined") {
+      try {
+        line += ` ${JSON.stringify(payload)}`;
+      } catch (error) {
+        line += " [payload_unserializable]";
+      }
     }
-    const safe = escapeHtml(correctWord);
-    const prefix = safe.slice(0, mismatchIndex);
-    const mismatch = safe.slice(mismatchIndex, mismatchIndex + 1);
-    const suffix = safe.slice(mismatchIndex + 1);
-    return `Correct spelling: <span class="match">${prefix}</span><span class="mismatch">${mismatch}</span>${suffix}`;
+    state.debugLogs.push(line);
+    if (state.debugLogs.length > 120) {
+      state.debugLogs = state.debugLogs.slice(-120);
+    }
+    try {
+      console.log("[SpellingBee]", line);
+    } catch (error) {
+      // No-op
+    }
   }
 
   function currentEntry() {
