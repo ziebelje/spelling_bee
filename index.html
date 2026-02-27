@@ -829,18 +829,17 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   function onRecognitionResult(event) {
-    let appendedFinal = "";
+    let finalText = "";
     let interimText = "";
-    const start = Number.isInteger(event.resultIndex) && event.resultIndex >= 0 ? event.resultIndex : 0;
-    for (let i = start; i < event.results.length; i += 1) {
+    for (let i = 0; i < event.results.length; i += 1) {
       const chunk = `${event.results[i][0].transcript} `;
       if (event.results[i].isFinal) {
-        appendedFinal += chunk;
+        finalText += chunk;
       } else {
         interimText += chunk;
       }
     }
-    state.finalTranscript = `${state.finalTranscript} ${appendedFinal}`.trim();
+    state.finalTranscript = finalText.trim();
     state.interimTranscript = interimText.trim();
     state.transcript = `${state.finalTranscript} ${state.interimTranscript}`.trim();
     debugLog("speech_recognition_onresult", {
@@ -855,7 +854,7 @@ body[data-state="result"][data-result="wrong"] {
     const liveParsed = parseTranscript(state.transcript, entry.word.word);
     const finalParsed = parseTranscript(state.finalTranscript, entry.word.word);
     const candidateLetters = finalParsed.hasLetters && finalParsed.letters ? finalParsed.letters : liveParsed.letters;
-    const maxReasonableLength = String(entry.word.word || "").length + 2;
+    const maxReasonableLength = Math.max(2, String(entry.word.word || "").length + 2);
     if (candidateLetters && candidateLetters.length <= maxReasonableLength) {
       if (!state.lockedLetters || candidateLetters.startsWith(state.lockedLetters)) {
         state.lockedLetters = candidateLetters;
@@ -1219,7 +1218,7 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   function parseTranscript(transcript, targetWord) {
-    void targetWord;
+    const maxLetters = Math.max(2, String(targetWord || "").length + 2);
     const raw = String(transcript || "")
       .replace(/-/g, " ")
       .replace(/[^a-zA-Z\s]/g, " ")
@@ -1259,15 +1258,18 @@ body[data-state="result"][data-result="wrong"] {
         const mapped = LETTER_TOKEN_MAP[normalized];
         if (mapped === " ") {
           letters.push(" ");
+          if (letters.length >= maxLetters) break;
           continue;
         }
         letters.push(capitalizeNext ? mapped.toUpperCase() : mapped);
         capitalizeNext = false;
+        if (letters.length >= maxLetters) break;
         continue;
       }
       if (normalized.length === 1 && /[a-z]/.test(normalized)) {
         letters.push(capitalizeNext ? normalized.toUpperCase() : normalized);
         capitalizeNext = false;
+        if (letters.length >= maxLetters) break;
         continue;
       }
     }
@@ -1277,8 +1279,11 @@ body[data-state="result"][data-result="wrong"] {
 
   function getBestCapturedLetters(targetWord) {
     const parsed = parseTranscript(state.transcript, targetWord);
-    const liveLetters = parsed.hasLetters ? parsed.letters : "";
-    const locked = String(state.lockedLetters || "");
+    const maxLetters = Math.max(2, String(targetWord || "").length + 2);
+    const liveLettersRaw = parsed.hasLetters ? parsed.letters : "";
+    const lockedRaw = String(state.lockedLetters || "");
+    const liveLetters = liveLettersRaw.length <= maxLetters ? liveLettersRaw : "";
+    const locked = lockedRaw.length <= maxLetters ? lockedRaw : "";
     if (!locked) return liveLetters;
     if (!liveLetters) return locked;
     if (liveLetters.startsWith(locked)) return liveLetters;
