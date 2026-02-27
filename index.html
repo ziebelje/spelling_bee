@@ -619,6 +619,9 @@ body[data-state="result"][data-result="wrong"] {
     ui.modeSelect.value = state.settings.mode;
     ui.inputModeSelect.value = state.settings.inputMode;
     ui.liveLettersToggle.checked = !!state.settings.showLiveLetters;
+    if (ui.debugLog) {
+      ui.debugLog.hidden = true;
+    }
     debugLog("init", {
       mode: state.settings.mode,
       inputMode: state.settings.inputMode,
@@ -826,17 +829,18 @@ body[data-state="result"][data-result="wrong"] {
   }
 
   function onRecognitionResult(event) {
-    let finalText = "";
+    let appendedFinal = "";
     let interimText = "";
-    for (let i = 0; i < event.results.length; i += 1) {
+    const start = Number.isInteger(event.resultIndex) && event.resultIndex >= 0 ? event.resultIndex : 0;
+    for (let i = start; i < event.results.length; i += 1) {
       const chunk = `${event.results[i][0].transcript} `;
       if (event.results[i].isFinal) {
-        finalText += chunk;
+        appendedFinal += chunk;
       } else {
         interimText += chunk;
       }
     }
-    state.finalTranscript = finalText.trim();
+    state.finalTranscript = `${state.finalTranscript} ${appendedFinal}`.trim();
     state.interimTranscript = interimText.trim();
     state.transcript = `${state.finalTranscript} ${state.interimTranscript}`.trim();
     debugLog("speech_recognition_onresult", {
@@ -849,9 +853,12 @@ body[data-state="result"][data-result="wrong"] {
     if (entry.state !== "spelling") return;
 
     const liveParsed = parseTranscript(state.transcript, entry.word.word);
-    if (liveParsed.hasLetters && liveParsed.letters) {
-      if (!state.lockedLetters || liveParsed.letters.startsWith(state.lockedLetters)) {
-        state.lockedLetters = liveParsed.letters;
+    const finalParsed = parseTranscript(state.finalTranscript, entry.word.word);
+    const candidateLetters = finalParsed.hasLetters && finalParsed.letters ? finalParsed.letters : liveParsed.letters;
+    const maxReasonableLength = String(entry.word.word || "").length + 2;
+    if (candidateLetters && candidateLetters.length <= maxReasonableLength) {
+      if (!state.lockedLetters || candidateLetters.startsWith(state.lockedLetters)) {
+        state.lockedLetters = candidateLetters;
       }
     }
     scheduleSpellingIdleAutoSubmit();
@@ -1126,11 +1133,13 @@ body[data-state="result"][data-result="wrong"] {
   function pickNextWordIndex(mode, lastWordText) {
     const lastNorm = normalizeWord(lastWordText || "");
     if (mode === "struggle") {
+      const untestedCandidates = [];
       const cleanCandidates = [];
       const missedCandidates = [];
       words.forEach((word, idx) => {
         const key = normalizeWord(word.word);
-        const bucket = state.stats[key] || { last3: [] };
+        const bucket = state.stats[key] || { right: 0, wrong: 0, last3: [] };
+        const totalAttempts = (bucket.right || 0) + (bucket.wrong || 0);
         const last3 = Array.isArray(bucket.last3) ? bucket.last3 : [];
         const misses = last3.filter((v) => !v).length;
 
@@ -1139,13 +1148,18 @@ body[data-state="result"][data-result="wrong"] {
           weight = Math.max(0.2, weight * 0.2);
         }
         const candidate = { idx, weight };
-        if (misses > 0) {
+        if (totalAttempts === 0) {
+          untestedCandidates.push(candidate);
+        } else if (misses > 0) {
           missedCandidates.push(candidate);
         } else {
           cleanCandidates.push(candidate);
         }
       });
 
+      if (untestedCandidates.length) {
+        return weightedRandom(untestedCandidates);
+      }
       if (!missedCandidates.length) {
         return weightedRandom(cleanCandidates);
       }
@@ -1321,7 +1335,7 @@ body[data-state="result"][data-result="wrong"] {
     ui.manualControls.hidden = !(state.settings.inputMode === "manual" && entry.state === "review");
 
     ui.sessionStats.textContent = `${state.session.right} right / ${state.session.wrong} wrong`;
-    if (ui.debugLog) {
+    if (ui.debugLog && !ui.debugLog.hidden) {
       ui.debugLog.textContent = state.debugLogs.length ? state.debugLogs.join("\n") : "No logs yet.";
     }
   }
