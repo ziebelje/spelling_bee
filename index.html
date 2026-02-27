@@ -561,7 +561,8 @@ body[data-state="result"][data-result="wrong"] {
     recognition: null,
     isListening: false,
     transcript: "",
-    lockedLetters: "",
+    tokenizedDisplay: "",
+    tokenizedUnits: [],
     pendingEvaluation: false,
     autoNextTimer: null,
     spellingIdleTimer: null,
@@ -851,19 +852,18 @@ body[data-state="result"][data-result="wrong"] {
     if (!entry) return;
     if (entry.state !== "spelling") return;
 
-    const liveParsed = parseTranscript(state.transcript, entry.word.word);
-    const finalParsed = parseTranscript(state.finalTranscript, entry.word.word);
-    const candidateLetters = finalParsed.hasLetters && finalParsed.letters ? finalParsed.letters : liveParsed.letters;
-    const maxReasonableLength = Math.max(2, String(entry.word.word || "").length + 2);
-    if (candidateLetters && candidateLetters.length <= maxReasonableLength) {
-      if (!state.lockedLetters || candidateLetters.startsWith(state.lockedLetters)) {
-        state.lockedLetters = candidateLetters;
-      }
-    }
+    const tokenized = tokenizeSpeechTranscript(state.transcript);
+    state.tokenizedUnits = tokenized.units;
+    state.tokenizedDisplay = tokenized.display;
+    const match = matchTokenizedAttempt(entry.word.word, tokenized);
+    debugLog("speech_tokenized", {
+      tokenCount: tokenized.units.length,
+      outputChars: tokenized.display.length,
+      matched: match.matched
+    });
     scheduleSpellingIdleAutoSubmit();
 
-    const liveLetters = getBestCapturedLetters(entry.word.word);
-    if (liveLetters && liveLetters === entry.word.word) {
+    if (match.matched) {
       submitSpelling();
       return;
     }
@@ -1026,22 +1026,20 @@ body[data-state="result"][data-result="wrong"] {
     if (!entry) return;
 
     const expectedWord = String(entry.word.word || "");
-    const letters = getBestCapturedLetters(expectedWord);
-    let validFormat = letters.length > 0;
-
-    if (state.lockedLetters && letters && !letters.startsWith(state.lockedLetters)) {
-      validFormat = false;
-      setMessage("You restarted with different letters. Keep your earlier letters the same.");
-    }
+    const tokenized = tokenizeSpeechTranscript(state.transcript);
+    state.tokenizedUnits = tokenized.units;
+    state.tokenizedDisplay = tokenized.display;
+    const validFormat = tokenized.units.length > 0;
+    const match = matchTokenizedAttempt(expectedWord, tokenized);
 
     let isCorrect = false;
     if (validFormat) {
-      isCorrect = letters === expectedWord;
+      isCorrect = match.matched;
     } else {
       setMessage('Say letters to spell the word, like "c-a-t".');
     }
 
-    finishAttemptResult(isCorrect, letters, expectedWord);
+    finishAttemptResult(isCorrect, tokenized.display, expectedWord);
   }
 
   function submitManualResult(isCorrect) {
@@ -1217,78 +1215,64 @@ body[data-state="result"][data-result="wrong"] {
     return Math.floor(Math.random() * maxExclusive);
   }
 
-  function parseTranscript(transcript, targetWord) {
-    const maxLetters = Math.max(2, String(targetWord || "").length + 2);
-    const raw = String(transcript || "")
-      .replace(/-/g, " ")
-      .replace(/[^a-zA-Z\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const tokens = raw
-      ? raw.split(/\s+/).map((token) => token.toLowerCase()).filter(Boolean)
-      : [];
-    if (!tokens.length) {
-      return { hasLetters: false, letters: "" };
-    }
-
-    const letterTokenIndexes = [];
-    for (let i = 0; i < tokens.length; i += 1) {
-      const normalized = tokens[i].replace(/[^a-z]/g, "");
-      if (!normalized) continue;
-      if (normalized === "capital" || normalized === "space" || LETTER_TOKEN_MAP[normalized] || (normalized.length === 1 && /[a-z]/.test(normalized))) {
-        letterTokenIndexes.push(i);
-      }
-    }
-
-    if (!letterTokenIndexes.length) {
-      return { hasLetters: false, letters: "" };
-    }
-
-    const remainder = tokens.slice(letterTokenIndexes[0]);
-    const letters = [];
+  function tokenizeSpeechTranscript(transcript) {
+    const raw = String(transcript || "").replace(/-/g, " ");
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    const units = [];
     let capitalizeNext = false;
-    for (const token of remainder) {
-      const normalized = token.replace(/[^a-z]/g, "");
+
+    for (const token of tokens) {
+      const normalized = token.toLowerCase().replace(/[^a-z]/g, "");
       if (!normalized) continue;
       if (normalized === "capital") {
         capitalizeNext = true;
         continue;
       }
-      if (LETTER_TOKEN_MAP[normalized]) {
-        const mapped = LETTER_TOKEN_MAP[normalized];
-        if (mapped === " ") {
-          letters.push(" ");
-          if (letters.length >= maxLetters) break;
-          continue;
-        }
-        letters.push(capitalizeNext ? mapped.toUpperCase() : mapped);
-        capitalizeNext = false;
-        if (letters.length >= maxLetters) break;
+
+      let mapped = "";
+      if (Object.prototype.hasOwnProperty.call(LETTER_TOKEN_MAP, normalized)) {
+        mapped = LETTER_TOKEN_MAP[normalized];
+      } else if (normalized.length === 1 && /[a-z]/.test(normalized)) {
+        mapped = normalized;
+      } else {
         continue;
       }
-      if (normalized.length === 1 && /[a-z]/.test(normalized)) {
-        letters.push(capitalizeNext ? normalized.toUpperCase() : normalized);
+
+      if (mapped === " ") {
+        units.push(" ");
         capitalizeNext = false;
-        if (letters.length >= maxLetters) break;
         continue;
       }
+
+      units.push(capitalizeNext ? mapped.toUpperCase() : mapped);
+      capitalizeNext = false;
     }
 
-    return { hasLetters: letters.length > 0, letters: letters.join("") };
+    return {
+      units,
+      display: units.join("")
+    };
   }
 
-  function getBestCapturedLetters(targetWord) {
-    const parsed = parseTranscript(state.transcript, targetWord);
-    const maxLetters = Math.max(2, String(targetWord || "").length + 2);
-    const liveLettersRaw = parsed.hasLetters ? parsed.letters : "";
-    const lockedRaw = String(state.lockedLetters || "");
-    const liveLetters = liveLettersRaw.length <= maxLetters ? liveLettersRaw : "";
-    const locked = lockedRaw.length <= maxLetters ? lockedRaw : "";
-    if (!locked) return liveLetters;
-    if (!liveLetters) return locked;
-    if (liveLetters.startsWith(locked)) return liveLetters;
-    if (locked.startsWith(liveLetters)) return locked;
-    return locked;
+  function buildExpectedSpelling(word) {
+    const chars = String(word || "").split("");
+    return chars.filter((char) => /[a-zA-Z ]/.test(char)).join("");
+  }
+
+  function matchTokenizedAttempt(expectedWord, tokenized) {
+    const tokenizedResult = tokenized || tokenizeSpeechTranscript(state.transcript);
+    const expected = buildExpectedSpelling(expectedWord);
+    const attempt = tokenizedResult.display;
+    if (!expected) {
+      return { matched: false, index: -1, expected, attempt };
+    }
+    const index = attempt.indexOf(expected);
+    return {
+      matched: index >= 0,
+      index,
+      expected,
+      attempt
+    };
   }
 
   function findMismatchIndex(input, expected) {
@@ -1314,7 +1298,7 @@ body[data-state="result"][data-result="wrong"] {
       ui.definition.textContent = def.text;
     }
 
-    const letters = getBestCapturedLetters(entry.word.word);
+    const letters = state.tokenizedDisplay;
     if (entry.state === "result") {
       if (entry.result && entry.result.isCorrect) {
         ui.liveLetters.textContent = "Correct!";
@@ -1380,7 +1364,8 @@ body[data-state="result"][data-result="wrong"] {
     state.transcript = "";
     state.finalTranscript = "";
     state.interimTranscript = "";
-    state.lockedLetters = "";
+    state.tokenizedDisplay = "";
+    state.tokenizedUnits = [];
   }
 
   function clearAutoNext() {
